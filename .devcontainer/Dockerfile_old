@@ -1,0 +1,123 @@
+FROM ubuntu:18.04 AS base
+
+RUN set -ex; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+    libmysqlclient-dev \
+    socat \
+    file
+
+RUN set -ex; \
+    apt-get install -y --no-install-recommends \
+    openssh-client \
+    git \
+    autoconf \
+    patch \
+    build-essential \
+    rustc \
+    libyaml-dev \
+    libreadline6-dev \
+    zlib1g-dev \
+    libgmp-dev \
+    libncurses5-dev \
+    libffi-dev \
+    libgdbm5 \
+    libgdbm-dev \
+    libdb-dev \
+    libpq-dev \
+    uuid-dev \
+    libmagickwand-dev \
+    libmariadb-dev \
+    ca-certificates \
+    curl \
+    bison \
+    libxml2-dev  \
+    libssl1.0-dev \
+    libxslt1-dev \
+    sqlite3 \
+    libsqlite3-dev \
+    wkhtmltopdf; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# skip installing gem documentation
+RUN set -ex; \
+  mkdir -p /usr/local/etc; \
+  { \
+  echo 'install: --no-document'; \
+  echo 'update: --no-document'; \
+  } >> /usr/local/etc/gemrc
+
+# Install Ruby
+ENV RUBY_MAJOR="2.3" \
+    RUBY_VERSION="2.3.8"
+
+RUN set -ex; \
+  curl "https://cache.ruby-lang.org/pub/ruby/$RUBY_MAJOR/ruby-$RUBY_VERSION.tar.gz" --output ruby.tar.xz; \
+  mkdir -p /usr/src/ruby; \
+  tar -xf ruby.tar.xz -C /usr/src/ruby/ --strip-components=1; \
+  rm ruby.tar.xz; \
+  cd /usr/src/ruby/; \
+  ./configure; \
+  make; \
+  make install; \
+  cd; \
+  rm -r /usr/src/ruby
+
+# Install bundler
+RUN set -ex; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+  imagemagick
+
+ENV GEM_HOME="/usr/local/bundle" \
+    BUNDLE_SILENCE_ROOT_WARNING=1 \
+    BUNDLE_APP_CONFIG="$GEM_HOME" \
+    PATH=$GEM_HOME/bin:$PATH \
+    RUBYGEMS_VERSION="2.5.2" \
+    BUNDLER_VERSION="1.17.3"
+
+RUN set -ex; \
+  mkdir "$GEM_HOME"; \
+  chmod 1777 "$GEM_HOME"
+
+# CA RNDS certificates
+RUN set -ex \
+  && mkdir -p /usr/local/share/ca-certificates/ \
+  && curl -k https://rnds.pro/certs/bundle_ca.crt --output /usr/local/share/ca-certificates/bundle_ca.crt \
+  && cat /usr/local/share/ca-certificates/bundle_ca.crt >> /etc/ssl/certs/ca-certificates.crt \
+  && update-ca-certificates
+
+WORKDIR /tmp
+
+COPY ../Gemfile ../Gemfile.lock ./
+
+RUN gem install bundler -v 1.17.3 \
+    && export PATH="$(ruby -e 'puts Gem.bindir'):$PATH" \
+    && bundle config library.rnds.pro user:pass \
+    && bundle install --jobs=3
+
+ENV LANG=C.UTF-8
+
+WORKDIR /workspace
+
+RUN set -ex; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+  libyaml-0-2 \
+  libpq5 \
+  libmagickcore-6.q16-3 \
+  libmariadb3 \
+  cron \
+  libcurl4; \
+  apt-get clean; \
+  rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+ENV GEM_HOME="/usr/local/bundle" \
+    BUNDLE_SILENCE_ROOT_WARNING=1 \
+    BUNDLE_APP_CONFIG="$GEM_HOME"  \
+    PATH=$GEM_HOME/bin:$PATH
+
+EXPOSE 3000
+
+ENTRYPOINT [ "tail", "-f", "/dev/null" ]

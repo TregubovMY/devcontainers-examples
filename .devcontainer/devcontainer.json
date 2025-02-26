@@ -1,0 +1,23 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/ruby-rails-postgres
+{
+	"name": "MFC Reception",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "app",
+  "forwardPorts": [3000, 5432],
+	"workspaceFolder": "/workspaces/app",
+	"features": {
+		"ghcr.io/robbert229/devcontainer-features/postgresql-client:1": {
+			"version": "16"
+		}
+	},
+
+  "customizations" : {
+    "vscode": {
+      "extensions": ["castwide.solargraph", "eamodio.gitlens"]
+    }
+  },
+
+	"remoteUser": "dev",
+	"postCreateCommand": "bash -i -c './.devcontainer/dev-container-init'"
+}

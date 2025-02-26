@@ -1,0 +1,120 @@
+FROM ruby:2.5.8-slim-buster
+
+RUN set -ex; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+    git \
+    autoconf \
+    build-essential \
+    rustc \
+    libdb-dev \
+    curl \
+    libpq-dev \
+    libsqlite3-dev \
+    libmagickwand-dev \
+    python2 \
+    wkhtmltopdf; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# skip installing gem documentation
+RUN set -ex; \
+  mkdir -p /usr/local/etc; \
+  { \
+  echo 'install: --no-document'; \
+  echo 'update: --no-document'; \
+  } >> /usr/local/etc/gemrc
+
+# Install bundler
+RUN set -ex; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+  imagemagick
+
+# CA RNDS certificates
+RUN set -ex \
+  && mkdir -p /usr/local/share/ca-certificates/ \
+  && curl -k https://rnds.pro/certs/bundle_ca.crt --output /usr/local/share/ca-certificates/bundle_ca.crt \
+  && cat /usr/local/share/ca-certificates/bundle_ca.crt >> /etc/ssl/certs/ca-certificates.crt \
+  && update-ca-certificates
+
+COPY ../Gemfile ../Gemfile.lock ./
+
+RUN gem install bundler -v 2.3.26 \
+#    && gem update --system 3.2.3 \
+    && bundle config library.rnds.pro gem_reader:rubydead \
+    && bundle install --jobs=3
+
+# js dependencies stage
+RUN set -ex \
+    apt-get update; \
+    curl -fsSL https://deb.nodesource.com/setup_14.x | bash -; \
+    apt-get install -y nodejs; \
+    npm install --global yarn; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+COPY package.json package-lock.json yarn.lock ./
+
+RUN yarn install
+
+FROM ruby:2.5.8-slim-buster
+
+RUN set -ex; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+    git \
+    autoconf \
+    build-essential \
+    rustc \
+    libdb-dev \
+    curl \
+    libpq-dev \
+    libsqlite3-dev \
+    libmagickwand-dev \
+    python2 \
+    wkhtmltopdf; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# skip installing gem documentation
+RUN set -ex; \
+  mkdir -p /usr/local/etc; \
+  { \
+  echo 'install: --no-document'; \
+  echo 'update: --no-document'; \
+  } >> /usr/local/etc/gemrc
+
+# Install bundler
+RUN set -ex; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+  imagemagick
+
+# CA RNDS certificates
+RUN set -ex \
+  && mkdir -p /usr/local/share/ca-certificates/ \
+  && curl -k https://rnds.pro/certs/bundle_ca.crt --output /usr/local/share/ca-certificates/bundle_ca.crt \
+  && cat /usr/local/share/ca-certificates/bundle_ca.crt >> /etc/ssl/certs/ca-certificates.crt \
+  && update-ca-certificates
+
+COPY ../Gemfile ../Gemfile.lock ./
+
+RUN gem install bundler -v 2.3.26 \
+#    && gem update --system 3.2.3 \
+    && bundle config library.rnds.pro user:pass \
+    && bundle install --jobs=3
+
+# js dependencies stage
+RUN set -ex \
+    apt-get update; \
+    curl -fsSL https://deb.nodesource.com/setup_14.x | bash -; \
+    apt-get install -y nodejs; \
+    npm install --global yarn; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+COPY package.json package-lock.json yarn.lock ./
+
+RUN yarn install
+

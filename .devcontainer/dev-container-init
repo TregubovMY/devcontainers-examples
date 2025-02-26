@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e
+
+echo "Проверяем окружение..."
+mise exec ruby -- ruby -v
+mise exec node -- node -v
+
+echo "Копируем конфигурационные файлы..."
+cp config/database.yml.example config/database.yml
+cp config/secrets.yml.example config/secrets.yml
+
+echo "Устанавливаем зависимости..."
+mise exec ruby -- bundle install
+mise exec node -- yarn install
+
+echo "Создаем новую базу данных..."
+mise exec ruby -- bundle exec rails db:create
+mise exec ruby -- bundle exec rails db:migrate
+mise exec ruby -- bundle exec rails db:seed
+
+echo "Инициализация контейнера разработки завершена!"
